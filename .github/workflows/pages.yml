@@ -1,0 +1,46 @@
+name: Publish audited Why Gone preview
+on:
+  push:
+    branches: [main]
+    paths: [WHY_GONE_W1_PAGES_ASSETS.zip, .github/workflows/pages.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: why-gone-preview-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify audited archive and extract static pages
+        run: |
+          echo '7cf841eae3c2fb590de82b1aff122a5e1ae7cc7697387db7080c4dbd9bc5e6c8  WHY_GONE_W1_PAGES_ASSETS.zip' | sha256sum -c -
+          mkdir site
+          unzip -q WHY_GONE_W1_PAGES_ASSETS.zip -d site
+          test -f site/index.html
+          test -f site/404.html
+          test -f site/assets/app.js
+          test -f site/assets/style.css
+          test ! -e site/_headers
+          test ! -e site/editor
+          test ! -e site/src
+          test ! -e site/content
+          grep -q 'noindex,nofollow' site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
