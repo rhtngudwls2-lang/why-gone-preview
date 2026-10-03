@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Verify audited archive and extract static pages
         run: |
-          echo '8e910944f7c87f508b9aa6766d8a1e3b86d7addc66ef4d44452f01352705582a  WHY_GONE_USER_PREVIEW_30_2026-10-03.zip' | sha256sum -c -
+          echo '79a5707eb9956ec981ccffb1ce09282e3ee9f6db01bb005c3105469ede87e0cc  WHY_GONE_USER_PREVIEW_30_2026-10-03.zip' | sha256sum -c -
           mkdir site
           unzip -q WHY_GONE_USER_PREVIEW_30_2026-10-03.zip -d site
           test -f site/index.html
