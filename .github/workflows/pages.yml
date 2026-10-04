@@ -2,7 +2,7 @@ name: Publish audited Why Gone preview
 on:
   push:
     branches: [main]
-    paths: [WHY_GONE_USER_PREVIEW_200_2026-10-04.zip, .github/workflows/pages.yml]
+    paths: [WHY_GONE_USER_PREVIEW_200_SAVE_SAFE_2026-10-04.zip, .github/workflows/pages.yml]
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,10 +16,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Verify audited archive and extract static pages
         run: |
-          echo '9b6d0a28c588a1adba39a8121760faaf01c7c37887a1725b34a7f950e8fc433b  WHY_GONE_USER_PREVIEW_200_2026-10-04.zip' | sha256sum -c -
+          echo 'e5628b6e9b13e42e83aa767fcc121b77495da5478a71e4384eafd4e1869289d4  WHY_GONE_USER_PREVIEW_200_SAVE_SAFE_2026-10-04.zip' | sha256sum -c -
           python3 - <<'PY'
           import zipfile, pathlib, stat, re, json
-          with zipfile.ZipFile('WHY_GONE_USER_PREVIEW_200_2026-10-04.zip') as z:
+          with zipfile.ZipFile('WHY_GONE_USER_PREVIEW_200_SAVE_SAFE_2026-10-04.zip') as z:
               names=z.namelist()
               assert len(names)==len(set(names))==237
               for i in z.infolist():
@@ -34,7 +34,7 @@ jobs:
               assert b'Disallow: /' in z.read('robots.txt') and 'sitemap.xml' not in names
           PY
           mkdir site
-          unzip -q WHY_GONE_USER_PREVIEW_200_2026-10-04.zip -d site
+          unzip -q WHY_GONE_USER_PREVIEW_200_SAVE_SAFE_2026-10-04.zip -d site
           test -f site/index.html
           test -f site/404.html
           test -f site/faq/index.html
