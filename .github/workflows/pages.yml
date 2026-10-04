@@ -2,7 +2,7 @@ name: Publish audited Why Gone public site
 on:
   push:
     branches: [main]
-    paths: [WHY_GONE_PUBLIC_200_2026-10-04.zip, .github/workflows/pages.yml]
+    paths: [WHY_GONE_PUBLIC_200_2026-10-04.zip, .github/workflows/pages.yml, "design-review/**"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -84,6 +84,34 @@ jobs:
           unzip -q WHY_GONE_PUBLIC_200_2026-10-04.zip -d site
           test -f site/index.html
           test -f site/assets/app.js
+      - name: Add isolated noindex design review; preserve all official bytes
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,pathlib,shutil
+          from html.parser import HTMLParser
+          review=pathlib.Path('design-review');site=pathlib.Path('site');dest=site/'design-review'
+          expected={'index.html': 'a56f1dd93c4a178148831677d386fc83d055652eb335b17b68a8ffb69a95b68d', 'home.html': 'e1c3dcf4e45edc8b66846c2618fb9b84a7863fc11d50ee6a77b06eeaa6b953bc', 'detail.html': '8042c486fba2aaf1782b307f93c7b7f3c97f8a6b9971dd5e88405415256f77e3', 'reading.html': '63df38482150b25a4a0e59d9ad3cb5895b00ecff9be5a58bb52da4c4c9da2429', 'timeline.html': 'd1e18c55fa7388756cb4a45614ea82412d231a65d13b7f91c5204051054270f5', 'proposal.html': 'bdd5808a1700e7f2724d2b57b955e75e6e7a0beebcabc31fabbca06cd07f1772', 'style.css': '48262cc41c901a6eee47b14fcc88f91b390346314453210cfb61d71aac8f17ef', 'prototype.js': '4db7a57b0ff406a9beb8834bba34259a1614c9de63910b34673d8998ad382b51', 'assets/c2-microsoft-3d-viewer.svg': '5dd31a7937a748c7c8e699c2ef37c8634aa0b1c20af64f603d3f9ccbe0af2b70', 'assets/c2-adobe-flash-player.svg': '486f8e351155164cd87ee201fc53acb3d766b7a163bd1ee227c72ea28aaebbe7'}
+          actual={str(p.relative_to(review)):hashlib.sha256(p.read_bytes()).hexdigest() for p in review.rglob('*') if p.is_file()}
+          assert actual==expected,'exact review files and hashes required'
+          class Page(HTMLParser):
+           def __init__(self):super().__init__();self.robots=[];self.canonical=[]
+           def handle_starttag(self,t,attrs):
+            a=dict(attrs)
+            if t=='meta' and a.get('name')=='robots':self.robots.append(a.get('content'))
+            if t=='link' and a.get('rel')=='canonical':self.canonical.append(a.get('href'))
+          for name in actual:
+           if name.endswith('.html'):
+            p=Page();p.feed((review/name).read_text());assert p.robots==['noindex,nofollow'] and not p.canonical,name
+          assert b'design-review' not in (site/'sitemap.xml').read_bytes(),'review must be excluded from sitemap'
+          assert not dest.exists(),'review target collision'
+          before={str(p.relative_to(site)):hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          assert len(before)==238,'original approved publication count'
+          shutil.copytree(review,dest)
+          after={str(p.relative_to(site)):hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
+          assert all(after.get(k)==v for k,v in before.items()),'all original bytes preserved'
+          assert set(after)-set(before)=={'design-review/'+k for k in expected},'review additions only'
+          print(json.dumps({'pass':True,'originalFilesPreserved':len(before),'reviewFiles':len(expected),'htmlNoindex':6,'totalFiles':len(after),'sitemapUnchanged':True}))
+          PY
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
@@ -100,4 +128,5 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
 

@@ -1,0 +1,8 @@
+const params=new URLSearchParams(location.search);
+for(const [key,allowed,variable] of [['reading',['680','720','760'],'--reading'],['header',['72','76','80'],'--header']])if(allowed.includes(params.get(key)))document.documentElement.style.setProperty(variable,params.get(key)+'px');
+const toc=document.querySelector('.toc');
+if(toc&&'IntersectionObserver'in window){const links=[...toc.querySelectorAll('a')];const observer=new IntersectionObserver(entries=>{const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top)[0];if(visible)for(const link of links){if(link.hash==='#'+visible.target.id)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');}},{rootMargin:'-100px 0px -55% 0px',threshold:0});document.querySelectorAll('.reading section').forEach(s=>observer.observe(s));}
+const draft=document.getElementById('draft'), mail=document.getElementById('mail-link');
+if(draft&&mail)draft.addEventListener('input',()=>{mail.href='mailto:blueredexper@gmail.com?subject='+encodeURIComponent('왜 사라졌지 제안')+'&body='+encodeURIComponent(draft.value);});
+document.getElementById('copy-draft')?.addEventListener('click',async()=>{const status=document.getElementById('copy-status');try{await navigator.clipboard.writeText(draft.value);status.textContent='내용을 복사했습니다. 사이트에 전송하거나 저장하지 않았습니다.';}catch{status.textContent='이 환경에서는 자동 복사가 지원되지 않습니다. 내용을 직접 선택해 복사해주세요.';}});
+document.querySelector('[data-random-ids]')?.addEventListener('click',event=>{const ids=JSON.parse(event.currentTarget.dataset.randomIds);const id=ids[Math.floor(Math.random()*ids.length)];location.href='https://rhtngudwls2-lang.github.io/why-gone-preview/record/'+encodeURIComponent(id)+'/';});
