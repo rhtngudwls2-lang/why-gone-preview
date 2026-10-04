@@ -1,8 +1,8 @@
-name: Publish audited Why Gone preview
+name: Publish audited Why Gone public site
 on:
   push:
     branches: [main]
-    paths: [WHY_GONE_USER_PREVIEW_200_SAVE_SAFE_2026-10-04.zip, .github/workflows/pages.yml]
+    paths: [WHY_GONE_PUBLIC_200_2026-10-04.zip, .github/workflows/pages.yml]
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,49 +12,78 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      EXPECTED_INDEXING: 'true'
     steps:
       - uses: actions/checkout@v6
-      - name: Verify audited archive and extract static pages
+      - name: Verify audited archive and exact publication mode
         run: |
-          echo 'e5628b6e9b13e42e83aa767fcc121b77495da5478a71e4384eafd4e1869289d4  WHY_GONE_USER_PREVIEW_200_SAVE_SAFE_2026-10-04.zip' | sha256sum -c -
-          python3 - <<'PY'
-          import zipfile, pathlib, stat, re, json
-          with zipfile.ZipFile('WHY_GONE_USER_PREVIEW_200_SAVE_SAFE_2026-10-04.zip') as z:
-              names=z.namelist()
-              assert len(names)==len(set(names))==237
-              for i in z.infolist():
-                  p=pathlib.PurePosixPath(i.filename)
-                  assert not p.is_absolute() and '..' not in p.parts and '\\' not in i.filename
-                  assert not stat.S_ISLNK(i.external_attr >> 16)
-                  allowed=i.filename in {'index.html','404.html','robots.txt','build-info.json'} or i.filename.startswith('assets/') or re.fullmatch(r'(?:about|explore|timeline|saved|privacy|faq|contact|proposal|record/[a-z0-9-]+|collection/[a-z0-9-]+)/index\.html',i.filename)
-                  assert allowed, i.filename
-                  assert not any(x in {'src','content','editor','.private','docs','tests','deploy','admin-api','node_modules'} or x.startswith('.') for x in p.parts)
-                  if i.filename.endswith('.html'):assert b'noindex,nofollow' in z.read(i)
-              assert json.loads(z.read('build-info.json'))['recordCount']==200
-              assert b'Disallow: /' in z.read('robots.txt') and 'sitemap.xml' not in names
+          echo 'be8261e6fb01b3713abad45253ff5aaf5974ffe95a8581dcd43ee7b84513a1c8  WHY_GONE_PUBLIC_200_2026-10-04.zip' | sha256sum -c -
+          python3 - WHY_GONE_PUBLIC_200_2026-10-04.zip <<'PY'
+          import os
+          #!/usr/bin/env python3
+          """Strict mode-aware static archive validation. No network or host-root changes."""
+          import zipfile,pathlib,stat,re,json,sys,hashlib
+          from html.parser import HTMLParser
+          import xml.etree.ElementTree as ET
+          ORIGIN='https://rhtngudwls2-lang.github.io';BASE='/why-gone-preview/'
+          class Page(HTMLParser):
+           def __init__(self,text):
+            super().__init__();self.meta={};self.canon=[];self.schemas=[];self.ld=None;self.mail=[];self.feed(text)
+           def handle_starttag(self,t,attrs):
+            a=dict(attrs)
+            if t=='meta':self.meta[a.get('name',a.get('property',''))]=a.get('content')
+            if t=='link' and a.get('rel')=='canonical':self.canon.append(a.get('href'))
+            if t=='script' and a.get('type')=='application/ld+json':self.ld=''
+            if t=='a' and a.get('href','').startswith('mailto:'):self.mail.append(a['href'])
+           def handle_data(self,text):
+            if self.ld is not None:self.ld+=text
+           def handle_endtag(self,t):
+            if t=='script' and self.ld is not None:self.schemas.append(json.loads(self.ld));self.ld=None
+          
+          def audit(archive):
+           with zipfile.ZipFile(archive) as z:
+            names=z.namelist();info=json.loads(z.read('build-info.json'));indexed=info['indexing'];assert type(indexed) is bool
+            assert info['recordCount']==200 and info['basePath']==BASE and info['editorIncluded'] is False and info['backendConnected'] is False
+            assert len(names)==len(set(names))==(238 if indexed else 237),'exact file count'
+            assert info['mode']==('production' if indexed else 'preview')
+            assert info['siteOrigin']==(ORIGIN if indexed else None),'exact approved origin'
+            for i in z.infolist():
+             p=pathlib.PurePosixPath(i.filename);assert not p.is_absolute() and '..' not in p.parts and '\\' not in i.filename and not stat.S_ISLNK(i.external_attr>>16)
+             allowed=i.filename in {'index.html','404.html','robots.txt','build-info.json'} or (indexed and i.filename=='sitemap.xml') or i.filename.startswith('assets/') or re.fullmatch(r'(?:about|explore|timeline|saved|privacy|faq|contact|proposal|record/[a-z0-9-]+|collection/[a-z0-9-]+)/index\.html',i.filename)
+             assert allowed,i.filename
+             assert not any(x in {'src','content','editor','.private','docs','tests','deploy','admin-api','node_modules'} or x.startswith('.') for x in p.parts),i.filename
+            data=json.loads(z.read('assets/records-index.json'));ids=[r['id'] for r in data];assert len(ids)==len(set(ids))==200
+            details={n.split('/')[1] for n in names if re.fullmatch(r'record/[a-z0-9-]+/index\.html',n)};assert details==set(ids)
+            html=[n for n in names if n.endswith('.html')];assert len(html)==213
+            routes={ORIGIN+BASE+('' if n=='index.html' else n.removesuffix('index.html')) for n in html if n not in ['404.html','saved/index.html']}
+            for n in html:
+             p=Page(z.read(n).decode());expected='noindex,nofollow' if not indexed or n=='404.html' else 'noindex,follow' if n=='saved/index.html' else 'index,follow'
+             assert p.meta.get('robots')==expected,(n,'robots')
+             if indexed and n!='404.html':
+              url=ORIGIN+BASE+('' if n=='index.html' else n.removesuffix('index.html'));assert p.canon==[url] and p.meta.get('og:url')==url and p.schemas,(n,'canonical/schema')
+              def check_urls(value):
+               if isinstance(value,dict):
+                for key,v in value.items():
+                 if key in ['url','item'] and isinstance(v,str):assert v.startswith(ORIGIN+BASE),(n,key,v)
+                 check_urls(v)
+               elif isinstance(value,list):
+                for v in value:check_urls(v)
+              check_urls(p.schemas)
+             else:assert not p.canon and not p.meta.get('og:url') and not p.schemas,(n,'noncanonical')
+            if indexed:
+             urls=[e.text for e in ET.fromstring(z.read('sitemap.xml')).iter('{http://www.sitemaps.org/schemas/sitemap/0.9}loc')];assert len(urls)==len(set(urls)) and set(urls)==routes
+             assert z.read('robots.txt').decode()==f'User-agent: *\nAllow: /\nSitemap: {ORIGIN}{BASE}sitemap.xml\n'
+            else:assert 'sitemap.xml' not in names and z.read('robots.txt')==b'User-agent: *\nDisallow: /\n'
+            for n in ['contact/index.html','faq/index.html']:
+             mail=Page(z.read(n).decode()).mail;assert mail and all(u.split('?')[0]=='mailto:blueredexper@gmail.com' for u in mail)
+           return {'pass':True,'indexing':indexed,'files':len(names),'html':len(html),'records':len(ids),'details':len(details),'sitemapUrls':len(routes) if indexed else 0,'origin':info['siteOrigin'],'archiveSha256':hashlib.sha256(pathlib.Path(archive).read_bytes()).hexdigest()}
+          result=audit(sys.argv[1]);expected=os.environ['EXPECTED_INDEXING'];assert expected in {'true','false'};assert result['indexing']==(expected=='true'),'unexpected deployment mode';print(json.dumps(result))
           PY
           mkdir site
-          unzip -q WHY_GONE_USER_PREVIEW_200_SAVE_SAFE_2026-10-04.zip -d site
+          unzip -q WHY_GONE_PUBLIC_200_2026-10-04.zip -d site
           test -f site/index.html
-          test -f site/404.html
-          test -f site/faq/index.html
-          test -f site/contact/index.html
-          test -f site/proposal/index.html
-          test -f site/privacy/index.html
           test -f site/assets/app.js
-          test -f site/assets/style.css
-          test ! -e site/_headers
-          test ! -e site/editor
-          test ! -e site/src
-          test ! -e site/content
-          test ! -e site/.private
-          test ! -e site/tests
-          test ! -e site/docs
-          test ! -e site/deploy
-          find site -name '*.html' -exec grep -L 'noindex,nofollow' {} + > /tmp/missing-noindex
-          test ! -s /tmp/missing-noindex
-          grep -q '^Disallow: /$' site/robots.txt
-          test ! -e site/sitemap.xml
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
