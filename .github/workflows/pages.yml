@@ -2,7 +2,7 @@ name: Publish audited Why Gone public site
 on:
   push:
     branches: [main]
-    paths: [WHY_GONE_PUBLIC_200_2026-10-04.zip, .github/workflows/pages.yml, "design-review/**"]
+    paths: [WHY_GONE_PUBLIC_200_DESIGN_2026-10-04.zip, .github/workflows/pages.yml, "design-review/**"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,8 +18,8 @@ jobs:
       - uses: actions/checkout@v6
       - name: Verify audited archive and exact publication mode
         run: |
-          echo 'be8261e6fb01b3713abad45253ff5aaf5974ffe95a8581dcd43ee7b84513a1c8  WHY_GONE_PUBLIC_200_2026-10-04.zip' | sha256sum -c -
-          python3 - WHY_GONE_PUBLIC_200_2026-10-04.zip <<'PY'
+          echo '465bd5921ed02e66ada0742214675e9fb65f9e3c24a271c90c3c5933c241b430  WHY_GONE_PUBLIC_200_DESIGN_2026-10-04.zip' | sha256sum -c -
+          python3 - WHY_GONE_PUBLIC_200_DESIGN_2026-10-04.zip <<'PY'
           import os
           #!/usr/bin/env python3
           """Strict mode-aware static archive validation. No network or host-root changes."""
@@ -45,7 +45,7 @@ jobs:
            with zipfile.ZipFile(archive) as z:
             names=z.namelist();info=json.loads(z.read('build-info.json'));indexed=info['indexing'];assert type(indexed) is bool
             assert info['recordCount']==200 and info['basePath']==BASE and info['editorIncluded'] is False and info['backendConnected'] is False
-            assert len(names)==len(set(names))==(238 if indexed else 237),'exact file count'
+            assert len(names)==len(set(names))==(240 if indexed else 239),'exact file count'
             assert info['mode']==('production' if indexed else 'preview')
             assert info['siteOrigin']==(ORIGIN if indexed else None),'exact approved origin'
             for i in z.infolist():
@@ -81,7 +81,7 @@ jobs:
           result=audit(sys.argv[1]);expected=os.environ['EXPECTED_INDEXING'];assert expected in {'true','false'};assert result['indexing']==(expected=='true'),'unexpected deployment mode';print(json.dumps(result))
           PY
           mkdir site
-          unzip -q WHY_GONE_PUBLIC_200_2026-10-04.zip -d site
+          unzip -q WHY_GONE_PUBLIC_200_DESIGN_2026-10-04.zip -d site
           test -f site/index.html
           test -f site/assets/app.js
       - name: Add isolated noindex design review; preserve all official bytes
@@ -105,7 +105,7 @@ jobs:
           assert b'design-review' not in (site/'sitemap.xml').read_bytes(),'review must be excluded from sitemap'
           assert not dest.exists(),'review target collision'
           before={str(p.relative_to(site)):hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
-          assert len(before)==238,'original approved publication count'
+          assert len(before)==240,'original approved publication count'
           shutil.copytree(review,dest)
           after={str(p.relative_to(site)):hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
           assert all(after.get(k)==v for k,v in before.items()),'all original bytes preserved'
