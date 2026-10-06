@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Verify audited archive and exact publication mode
         run: |
-          echo 'adb5d64f3d2ec1ee43b54f04eb4a5ff98d9b85e656ff82c015ff691a07b6a991  WHY_GONE_PUBLIC_200_DESIGN_2026-10-04.zip' | sha256sum -c -
+          echo 'ca70920c0d75cce6765795032aba5dbde077053a991a020ad0b88ad034d5a60f  WHY_GONE_PUBLIC_200_DESIGN_2026-10-04.zip' | sha256sum -c -
           python3 - WHY_GONE_PUBLIC_200_DESIGN_2026-10-04.zip <<'PY'
           import os
           #!/usr/bin/env python3
