@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Verify audited archive and exact publication mode
         run: |
-          echo 'ca70920c0d75cce6765795032aba5dbde077053a991a020ad0b88ad034d5a60f  WHY_GONE_PUBLIC_200_DESIGN_2026-10-04.zip' | sha256sum -c -
+          echo 'de5b538f18740ec5503a8e959625237c3cf955962dc13d6da9a6f4a5dd9035a0  WHY_GONE_PUBLIC_200_DESIGN_2026-10-04.zip' | sha256sum -c -
           python3 - WHY_GONE_PUBLIC_200_DESIGN_2026-10-04.zip <<'PY'
           import os
           #!/usr/bin/env python3
@@ -45,7 +45,7 @@ jobs:
            with zipfile.ZipFile(archive) as z:
             names=z.namelist();info=json.loads(z.read('build-info.json'));indexed=info['indexing'];assert type(indexed) is bool
             assert info['recordCount']==200 and info['basePath']==BASE and info['editorIncluded'] is False and info['backendConnected'] is False
-            assert len(names)==len(set(names))==(240 if indexed else 239),'exact file count'
+            assert len(names)==len(set(names))==(259 if indexed else 258),'exact file count'
             assert info['mode']==('production' if indexed else 'preview')
             assert info['siteOrigin']==(ORIGIN if indexed else None),'exact approved origin'
             for i in z.infolist():
@@ -105,7 +105,7 @@ jobs:
           assert b'design-review' not in (site/'sitemap.xml').read_bytes(),'review must be excluded from sitemap'
           assert not dest.exists(),'review target collision'
           before={str(p.relative_to(site)):hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
-          assert len(before)==240,'original approved publication count'
+          assert len(before)==259,'original approved publication count'
           shutil.copytree(review,dest)
           after={str(p.relative_to(site)):hashlib.sha256(p.read_bytes()).hexdigest() for p in site.rglob('*') if p.is_file()}
           assert all(after.get(k)==v for k,v in before.items()),'all original bytes preserved'
@@ -128,3 +128,4 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
